@@ -1,0 +1,139 @@
+---
+title: "MachineLearningProj"
+author: "Chris Hartner"
+date: "October 25, 2015"
+output: html_document
+---
+
+
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: (http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+
+
+# Executive Summary
+
+* We use a dataset which includes records from accelerometers on belt, foreare, arm and dumbell of 6 participants who perform barbell lifts in 5 different ways (include correct and incorrect ways) to build our predictive models.
+* Analyze data for varaiable relevance and missing values.
+* Data splitting and model building
+* RandomForest was chosen as the final model and was more than 99% accurate.
+
+## Dataset
+
+Training 
+(https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)  
+Testing
+(https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)  
+
+## Preprocessing the data
+
+Load libraries and datasets (downloaded from the above links)
+
+```{r, echo=F}
+
+library(caret)
+library(randomForest)
+library(e1071)
+
+Trn <- read.csv("Mlearn/pml-training.csv", na.strings = c("", NA))
+Tst <- read.csv("Mlearn/pml-testing.csv", na.strings = c("",NA))
+
+```
+
+## Explore the data
+
+The training and testing dimensions are
+```{r, echo=F}
+dim(Trn)
+dim(Tst)
+```
+
+There are 160 variables in the datasets.  Exploring the data revealed there were numerous variables with NA's or missing data and 7 irrevelant variables (names, times, etc...).  Below is a table showing there are 100 variables with more than 97% NA's in their columns. These variables will be removed before the model is built.
+
+
+```{r, echo=F}
+natrn <- sapply(Trn, function(y) sum(length(which(is.na(y)))))
+natst <- sapply(Tst, function(y) sum(length(which(is.na(y)))))
+natrn <- data.frame(natrn)
+natst <- data.frame(natst)
+table(natrn)
+table(natst)
+
+Trn<- Trn[, which(natrn==0)]
+Trn<- Trn[, -c(1:7)]
+
+Tst<- Tst[, which(natst==0)]
+Tst<- Tst[, -c(1:7)]
+```
+Reduced dimensions of the datasets
+```{r, echo=F}
+dim(Trn)
+dim(Tst)
+```
+
+## Build the predictive model
+
+The number of variables for model inclusion has been reduced to 53 from 160.  Several models were built to find the best performing one for the data.  RandomForest was selected as the final model because it gave the best results.  Note cross validation and out of sample error rate are incorporated in randomForest internally. 
+
+To train/test the model the data was split with 60% for training and 40% for testing.
+
+```{r, echo=F}
+inTrain <- createDataPartition(y=Trn$classe, p=.6, list=F)
+Train <- Trn[inTrain,]
+Test <- Trn[-inTrain,]
+
+set.seed(98765)
+
+fitrf<- randomForest(classe~., data=Train, ntree=500, trcontrol=trainControl(method="cv"), importance=T)
+
+```
+
+## randomForest model
+
+```{r, echo=F}
+fitrf
+```
+
+The **OOB** out of bag error rate is very low indicating a reliable model for the data.  The following are a plot of the **OOB** and a graph of the mean decrease in Gini score.  
+
+```{r, echo=F}
+
+plot(fitrf, log="y", main="error rate vs trees")
+legend("right", colnames(fitrf$err.rate),fill=1:6)
+
+varImpPlot(fitrf,type = 2)
+
+```
+
+## Test/evaluate the model
+```{r, echo=F}
+
+predictrf <- predict(fitrf, Test)
+confusionMatrix(predictrf, Test$classe)
+
+```
+
+## Results of the randomForest model
+
+The model is more than 99% accurate and its out of sample error rate, **OOB**, is less than 1%.  Overall this model appears quite accruate in determing weight lifting movement with raw belt and yaw belt being the main contributing variables. 
+
+## Submitted answer
+
+```{r}
+
+answer <- predict(fitrf, Tst)
+answer
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
